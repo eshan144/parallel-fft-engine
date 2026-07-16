@@ -2,8 +2,6 @@
 
 A C++ project that implements the Fast Fourier Transform from scratch, then progressively optimizes it using OpenMP while measuring and analyzing the performance improvements.
 
-**Project status:** Complete ✓
-
 **Platform:** Windows · MSVC 2022 · OpenMP · Intel Core i7-9700 (8 cores) · 16 GB RAM
 
 ---
