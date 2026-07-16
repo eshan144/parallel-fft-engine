@@ -1,6 +1,6 @@
 # High-Performance Parallel FFT Engine
 
-A pedagogical HPC and performance-engineering project implementing a radix-2 Cooley-Tukey FFT with progressive optimization stages. Each stage builds measurably on the previous, establishing clear performance baselines for comparison.
+A C++ project that implements the Fast Fourier Transform from scratch, then progressively optimizes it using OpenMP while measuring and analyzing the performance improvements.
 
 **Project status:** Complete ✓
 
@@ -8,35 +8,43 @@ A pedagogical HPC and performance-engineering project implementing a radix-2 Coo
 
 ---
 
-## Motivation
+## Why I built this
 
-The Fast Fourier Transform (FFT) is one of the most widely used algorithms in engineering and scientific computing — signal processing, image analysis, communications, medical imaging, and numerical simulation all depend on efficient spectral analysis.
+I wanted to understand how algorithmic optimization and parallel programming affect real performance. Rather than using an existing FFT library, I implemented the algorithm from scratch, verified its correctness, benchmarked it, and analyzed the results.
 
-This project studies both *algorithmic* and *parallel* optimization of the radix-2 Cooley-Tukey FFT. The objective was to build a complete, reproducible performance engineering pipeline: implement, test, benchmark, analyse, and present — in a way that demonstrates systematic methodology for technical interviews and portfolio review.
+The project builds up in stages — starting with a naive DFT, then a serial FFT, then an OpenMP parallel version — so each optimization can be measured independently. This approach demonstrates systematic performance engineering that applies beyond FFT specifically.
+
+---
+
+## What I implemented
+
+- **Naive DFT.** A direct implementation of the Discrete Fourier Transform (O(N²)). Serves as a correctness reference and baseline for speedup calculations.
+- **Iterative radix-2 FFT.** The Cooley-Tukey Fast Fourier Transform (O(N log N)). Uses bit-reversal permutation, precomputed twiddle factors, and in-place butterfly operations.
+- **OpenMP parallel FFT.** The butterfly computation is parallelized across CPU cores using OpenMP. Bit-reversal and twiddle precomputation remain serial where appropriate.
+- **Benchmark suite.** Three separate benchmarks measure algorithmic speedup (DFT vs FFT) and strong scaling (OpenMP across 1–8 threads).
+- **Python plotting automation.** Scripts run all benchmarks and generate publication-quality figures from the output.
 
 ---
 
 ## Architecture
 
 ```
-                    ┌─────────────────┐
-                    │ Signal Generator │
-                    └────────┬────────┘
-                             │
-                             ▼
-                      ┌──────────────┐
-                      │  Input buffer │
-                      └──────┬───────┘
-                             │
-               ┌─────────────┼─────────────┐
-               ▼             ▼             ▼
-        ┌──────────┐  ┌──────────┐  ┌──────────────┐
-        │ DFT      │  │ FFT      │  │ FFT (OpenMP) │
-        │ O(N²)    │  │ O(N log) │  │ O(N log/p)   │
-        └────┬─────┘  └────┬─────┘  └──────┬───────┘
-             │             │               │
-             ▼             ▼               ▼
-           Tests        Benchmarks      Correctness
+   Input Signal
+        |
+        v
+   Naive DFT ------> Numerical Baseline (O(N^2))
+        |
+        v
+   Serial FFT ------> Algorithmic Speedup (O(N log N))
+        |
+        v
+   OpenMP FFT ------> Parallel Speedup (8 threads)
+        |
+        v
+   Benchmarking ----> Strong-Scaling Analysis
+        |
+        v
+   Python Plots ----> Report Figures
 ```
 
 ---
@@ -45,44 +53,14 @@ This project studies both *algorithmic* and *parallel* optimization of the radix
 
 ```
 ├── CMakeLists.txt
-├── README.md                               ← This file (primary documentation)
-├── docs/
-│   └── engineering_analysis.md             ← Detailed engineering analysis
-├── include/
-│   ├── dft.h                               ← Naive O(N²) DFT
-│   ├── fft.h                               ← Serial + OpenMP FFT
-│   ├── signal_generator.h                  ← Synthetic signal generation
-│   └── timer.h                             ← High-resolution stopwatch
-├── src/
-│   ├── dft.cpp                             ← DFT implementation
-│   ├── fft.cpp                             ← Serial radix-2 FFT
-│   ├── fft_openmp.cpp                      ← OpenMP parallel FFT
-│   └── signal_generator.cpp
-├── test/
-│   ├── test_dft.cpp                        ← DFT correctness (6 tests)
-│   ├── test_fft.cpp                        ← Serial FFT correctness (12 tests)
-│   └── test_fft_openmp.cpp                 ← OpenMP correctness (44 tests)
-├── benchmark/
-│   ├── benchmark_compare.cpp               ← DFT vs FFT speedup comparison
-│   ├── benchmark_dft.cpp                   ← Standalone DFT benchmark
-│   └── benchmark_strong_scaling.cpp        ← OpenMP strong-scaling analysis
-├── tools/
-│   ├── benchmark_runner.py                 ← Automated benchmark execution & parsing
-│   ├── plotting.py                         ← Publication-quality figure generation
-│   └── requirements.txt                    ← Python dependencies
-└── results/
-    └── figures/                            ← Generated PNG figures
+├── README.md
+├── include/          Header files
+├── src/              Implementation
+├── benchmark/        Benchmark programs
+├── test/             Correctness tests
+├── tools/            Python automation scripts
+└── results/figures/  Generated PNG figures
 ```
-
----
-
-## Background (Brief)
-
-**Discrete Fourier Transform (DFT).** Maps N complex time-domain samples to N frequency-domain coefficients. A direct evaluation is O(N²) — each of N output bins requires N multiply-adds.
-
-**Cooley-Tukey Radix-2 FFT.** For N a power of two, the transform decomposes into log₂(N) stages of N/2 independent *butterfly* operations. Complexity drops to O(N log N) — at N=16,384, this reduces ~270 million operations to ~230,000.
-
-**Parallel decomposition.** Butterflies within a single stage are data-independent (each operates on a distinct pair of elements), making them embarrassingly parallel. Stages are sequential, requiring synchronization between them.
 
 ---
 
@@ -144,17 +122,12 @@ All 62 correctness tests must pass.
 ## Running the Python Plotting Scripts
 
 ```bash
-# Install dependencies
 pip install -r tools/requirements.txt
-
-# Run benchmarks and generate all figures
 python tools/plotting.py
-
-# Re-plot from cached results (skip re-running benchmarks)
-python tools/plotting.py --no-run
+python tools/plotting.py --no-run   # re-plot from cached data
 ```
 
-Figures are written to `results/figures/` as 300 DPI PNG.
+Figures are saved to `results/figures/` as 300 DPI PNG.
 
 ---
 
@@ -173,76 +146,56 @@ Figures are written to `results/figures/` as 300 DPI PNG.
 
 ![Runtime vs Size](results/figures/runtime_vs_size.png)
 
-The DFT follows a clear O(N²) slope (4× time when N doubles), while both FFT variants follow O(N log N) (2× time when N doubles). At N=16,384, the serial FFT completes in ~0.54 ms — over 7,000× faster than the DFT's 3.8 s.
+The DFT time grows by roughly 4× when N doubles (O(N²)), while the FFT grows by roughly 2× (O(N log N)). At N=16,384, the serial FFT completes in ~0.54 ms — over 7,000× faster than the DFT.
 
 ### Algorithmic Speedup
 
 ![Algorithmic Speedup](results/figures/algorithmic_speedup.png)
 
-The measured speedup exceeds the N/log₂(N) ratio because the DFT evaluates 2N² transcendental functions per transform, while the FFT evaluates N log₂(N) twiddle factors once and reuses them.
+The measured speedup exceeds the N/log₂(N) ratio because the DFT evaluates many expensive sine and cosine calculations per transform, while the FFT precomputes twiddle factors once.
 
 ### Overall Speedup
 
 ![Overall Speedup](results/figures/overall_speedup.png)
 
-Algorithmic optimization (O(N²) → O(N log N)) produces orders of magnitude more speedup than parallelization alone — a core lesson in performance engineering.
+Algorithmic optimization (O(N²) → O(N log N)) produces orders of magnitude more speedup than parallelization alone.
 
 ### Strong Scaling
 
 ![Strong Scaling](results/figures/strong_scaling.png)
 
-Dashed lines show ideal ×p scaling. The OpenMP FFT tracks closest to ideal at larger problem sizes, where there is more work per thread to amortize synchronization costs.
+Dashed lines show ideal scaling. The OpenMP FFT performs best at larger problem sizes where there is more work per thread to offset synchronization costs.
 
 ### Parallel Efficiency
 
 ![Parallel Efficiency](results/figures/parallel_efficiency.png)
 
-Efficiency degrades from ~100% at 1 thread to ~22–27% at 8 threads. This is consistent with a combination of barrier synchronization overhead, OpenMP runtime costs, and limited work per thread.
+Efficiency drops from ~100% at 1 thread to ~22–27% at 8 threads, consistent with barrier synchronization overhead, OpenMP runtime costs, and limited work per thread.
 
 ---
 
-## Key Engineering Decisions
+## Design Decisions
 
-1. **Persistent parallel region.** A single `#pragma omp parallel` block encloses all FFT stages rather than creating a new region per stage, reducing thread-launch overhead from log₂(N) times to once.
-
-2. **Static scheduling.** `schedule(static)` provides deterministic workload distribution with negligible scheduling overhead and good spatial locality.
-
-3. **Serial twiddle precomputation.** Twiddle factors are computed by a single thread (`#pragma omp single`), avoiding redundant computation at the cost of a brief synchronization point.
-
-4. **Kernel-only timing.** The timer measures only the transform itself, excluding signal generation and output processing, using `std::chrono::steady_clock` with microsecond resolution.
-
-5. **Statistical aggregation.** Each configuration runs 10 times; min, mean, median, and max are reported. The minimum approximates best-case execution without OS interference.
+- **Persistent parallel region.** A single `#pragma omp parallel` block encloses all FFT stages rather than creating a new region per stage. This avoids repeatedly creating and destroying threads.
+- **Static scheduling.** Each butterfly does similar work, so static scheduling distributes them evenly with negligible overhead.
+- **Serial twiddle precomputation.** Twiddle factors are computed by one thread to avoid redundant work across threads.
+- **Kernel-only timing.** Only the transform itself is timed — signal generation and output processing are excluded.
+- **Statistical aggregation.** Each configuration runs 10 times; min, mean, median, and max are reported for reliable comparison.
 
 ---
 
-## Lessons Learned
+## What I Learned
 
-| Area | Key Takeaway |
-|------|-------------|
-| Algorithmic optimization | Changing complexity class (O(N²) → O(N log N)) yields ~7,000× speedup — far more than any constant-factor or parallel improvement |
-| Parallel overhead | OpenMP parallel regions are not free: 37–48% overhead at 1 thread vs serial |
-| Barrier cost | Implicit barriers between FFT stages limit scaling; each thread finishes its assigned butterflies at a different time |
-| Benchmarking methodology | Warm-up iterations, multiple timing metrics, and kernel-only timing are essential for reliable measurements |
-| Numerical correctness | The OpenMP variant produces bit-identical results to serial FFT — verified across 44 test cases |
+- Choosing a better algorithm usually provides a much larger speedup than parallelization. The O(N²) → O(N log N) improvement alone gave ~7,000×.
+- Parallel programming introduces real overhead — the OpenMP version was 37–48% slower than serial when running on a single thread.
+- Synchronization costs limit scalability. Even though the butterfly computation is embarrassingly parallel, the barriers between stages create serialization.
+- Good benchmarking requires careful methodology: warm-up runs, multiple iterations, and kernel-only timing all matter.
+- Correctness should always be verified before measuring performance. The OpenMP version produces bit-identical results to the serial FFT across all tested configurations.
 
 ---
 
 ## Conclusions
 
-1. **Algorithmic optimization dominates.** The FFT's O(N log N) complexity outperforms the DFT's O(N²) by orders of magnitude. This is always the first optimization to pursue.
+This project gave me hands-on experience with algorithm design, OpenMP, benchmarking, and performance analysis. The biggest lesson was that improving the algorithm had a much larger impact than simply adding more threads.
 
-2. **Parallel speedup saturates.** Amdahl's Law is visible in the data: synchronization, OpenMP overhead, and limited per-thread work bound the achievable speedup.
-
-3. **Measurement matters.** Statistical timing (min/mean/median), warm-up, and kernel-only measurement produce trustworthy benchmarks.
-
-4. **This is repeatable.** The Python automation pipeline runs all benchmarks and generates all figures from scratch with a single command.
-
----
-
-## Detailed Analysis
-
-For the full engineering discussion — including Amdahl's Law, profiling methodology, cache/locality analysis, and benchmark tables — see the project report.
-
----
-
-*Intel, Core i7, and VTune are trademarks of Intel Corporation. Microsoft, MSVC, and Visual Studio are trademarks of Microsoft Corporation.*
+The serial FFT outperforms the DFT by roughly 7,000× through algorithmic optimization alone. OpenMP provided additional speedup of about 2.2× on 8 cores, with diminishing returns from synchronization and overhead costs. The project is a concrete demonstration of systematic performance engineering — implement, measure, improve, and measure again.
